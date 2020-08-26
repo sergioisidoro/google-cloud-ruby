@@ -363,13 +363,24 @@ module Google
         #
         def subscribe subscription_name, deadline: nil, retain_acked: false, retention: nil, endpoint: nil, labels: nil,
                       message_ordering: nil, filter: nil, dead_letter_topic: nil,
-                      dead_letter_max_delivery_attempts: nil, retry_policy: nil
+                      dead_letter_max_delivery_attempts: nil, retry_policy: nil, oicd_token_email: nil,
+                      oicd_token_audience: nil
           ensure_service!
+
           options = { deadline: deadline, retain_acked: retain_acked, retention: retention, endpoint: endpoint,
                       labels: labels, message_ordering: message_ordering, filter: filter,
                       dead_letter_max_delivery_attempts: dead_letter_max_delivery_attempts }
 
           options[:dead_letter_topic_name] = dead_letter_topic.name if dead_letter_topic
+
+          if endpoint && oicd_token_email && oicd_token_audience
+            oidc_token = OidcToken.new.tap do |token|
+              token.email = oicd_token_email
+              token.audience = oicd_token_audience
+            end
+            options[:authentication] = oidc_token
+          end
+
           if options[:dead_letter_max_delivery_attempts] && !options[:dead_letter_topic_name]
             # Service error message "3:Invalid resource name given (name=)." does not identify param.
             raise ArgumentError, "dead_letter_topic is required with dead_letter_max_delivery_attempts"
